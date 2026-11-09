@@ -44,6 +44,9 @@ mod types;
 /// Tree builder options, with an impl for Default.
 #[derive(Copy, Clone)]
 pub struct TreeBuilderOpts {
+    /// Honour the self-closing flag on HTML start tags. Default: false.
+    pub honor_self_closing: bool,
+
     /// Report all parse errors described in the spec, at some
     /// performance penalty? Default: false
     pub exact_errors: bool,
@@ -70,6 +73,7 @@ pub struct TreeBuilderOpts {
 impl Default for TreeBuilderOpts {
     fn default() -> TreeBuilderOpts {
         TreeBuilderOpts {
+            honor_self_closing: false,
             exact_errors: false,
             scripting_enabled: true,
             iframe_srcdoc: false,
@@ -342,6 +346,19 @@ where
                     ..
                 })
             );
+            let closing_tag = match &token {
+                Token::Tag(tag)
+                    if self.opts.honor_self_closing && tag.kind == StartTag && tag.self_closing =>
+                {
+                    Some(Tag {
+                        kind: EndTag,
+                        name: tag.name.clone(),
+                        self_closing: false,
+                        attrs: Vec::new(),
+                    })
+                },
+                _ => None,
+            };
             let result = if self.is_foreign(&token) {
                 self.step_foreign(token)
             } else {
@@ -350,6 +367,10 @@ where
             };
             match result {
                 ProcessResult::Done => {
+                    if let Some(tag) = closing_tag {
+                        token = Token::Tag(tag);
+                        continue;
+                    }
                     if should_have_acknowledged_self_closing_flag {
                         self.sink
                             .parse_error(Borrowed("Unacknowledged self-closing tag"));
@@ -393,10 +414,17 @@ where
                     return tokenizer::TokenSinkResult::Script(node);
                 },
                 ProcessResult::ToPlaintext => {
+                    if closing_tag.is_some() {
+                        self.pop();
+                        return tokenizer::TokenSinkResult::Continue;
+                    }
                     assert!(more_tokens.is_empty());
                     return tokenizer::TokenSinkResult::Plaintext;
                 },
                 ProcessResult::ToRawData(k) => {
+                    if let Some(tag) = closing_tag {
+                        return self.process_to_completion(Token::Tag(tag));
+                    }
                     assert!(more_tokens.is_empty());
                     return tokenizer::TokenSinkResult::RawData(k);
                 },
