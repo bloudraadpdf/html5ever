@@ -109,3 +109,22 @@ fn test_driver_interrupted_by_non_script() {
     parser.process(test_case.into());
     parser.finish();
 }
+
+#[test]
+fn fragment_select_ignores_input_without_losing_following_options() {
+    let sink = driver::parse_fragment(
+        Sink::default(),
+        ParseOpts::default(),
+        QualName::new(None, ns!(html), local_name!("select")),
+        vec![],
+        false,
+    )
+    .one("<input><option>choice");
+    let names = sink.names.borrow();
+    assert!(!names
+        .values()
+        .any(|name| name.local == local_name!("input")));
+    assert!(names
+        .values()
+        .any(|name| name.local == local_name!("option")));
+}
