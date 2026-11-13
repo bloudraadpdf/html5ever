@@ -94,9 +94,15 @@ impl TreeSink for Sink {
         id
     }
 
-    #[allow(unused_variables)]
     fn create_pi(&self, target: StrTendril, value: StrTendril) -> usize {
-        unimplemented!()
+        let id = self.get_id();
+        println!(
+            "Created processing instruction <?{} {}?> as {}",
+            target.escape_default(),
+            value.escape_default(),
+            id
+        );
+        id
     }
 
     fn append(&self, parent: &usize, child: NodeOrText<usize>) {

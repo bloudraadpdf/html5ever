@@ -29,7 +29,16 @@ pub fn foreach_html5lib_test<Mk>(
             for entry in test_files {
                 let path = entry.unwrap().path();
                 if path.extension() == Some(ext) {
-                    let file = fs::File::open(&path).unwrap();
+                    let maintained = src_dir
+                        .join("data/spec-updates")
+                        .join(subdir)
+                        .join(path.file_name().unwrap());
+                    let source = if maintained.is_file() {
+                        &maintained
+                    } else {
+                        &path
+                    };
+                    let file = fs::File::open(source).unwrap();
                     mk(&path, file);
                 }
             }

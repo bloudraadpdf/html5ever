@@ -1,0 +1,285 @@
+{
+  "tests": [
+    {
+      "description": "<?task>",
+      "input": "<?task>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "task",
+          ""
+        ]
+      ]
+    },
+    {
+      "description": "<?_Ab-09?>",
+      "input": "<?_Ab-09?>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "_Ab-09",
+          ""
+        ]
+      ]
+    },
+    {
+      "description": "<?a \\t\\n\\x0c payload>",
+      "input": "<?a \t\n\f payload>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "payload"
+        ]
+      ]
+    },
+    {
+      "description": "<?a a=\"b\" &amp; ?>",
+      "input": "<?a a=\"b\" &amp; ?>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "a=\"b\" &amp; "
+        ]
+      ]
+    },
+    {
+      "description": "<?a??>",
+      "input": "<?a??>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "?"
+        ]
+      ]
+    },
+    {
+      "description": "<?a?data?>",
+      "input": "<?a?data?>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "?data"
+        ]
+      ]
+    },
+    {
+      "description": "<?a ?x??>",
+      "input": "<?a ?x??>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "?x?"
+        ]
+      ]
+    },
+    {
+      "description": "<?a \\xe9\\x00>",
+      "input": "<?a é\u0000>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "a",
+          "é\u0000"
+        ]
+      ]
+    },
+    {
+      "description": "<?1x>",
+      "input": "<?1x>",
+      "output": [
+        [
+          "Comment",
+          "?1x"
+        ]
+      ],
+      "errors": [
+        {
+          "code": "invalid-first-character-of-processing-instruction-target"
+        }
+      ]
+    },
+    {
+      "description": "<?:x>",
+      "input": "<?:x>",
+      "output": [
+        [
+          "Comment",
+          "?:x"
+        ]
+      ],
+      "errors": [
+        {
+          "code": "invalid-first-character-of-processing-instruction-target"
+        }
+      ]
+    },
+    {
+      "description": "<?a:b>",
+      "input": "<?a:b>",
+      "output": [
+        [
+          "Comment",
+          "?a:b"
+        ]
+      ],
+      "errors": [
+        {
+          "code": "invalid-processing-instruction-target"
+        }
+      ]
+    },
+    {
+      "description": "<?xml?>",
+      "input": "<?xml?>",
+      "output": [
+        [
+          "Comment",
+          "?xml?"
+        ]
+      ],
+      "errors": [
+        {
+          "code": "disallowed-processing-instruction-target"
+        }
+      ]
+    },
+    {
+      "description": "<?XmL-StYlEsHeEt a=b?>",
+      "input": "<?XmL-StYlEsHeEt a=b?>",
+      "output": [
+        [
+          "Comment",
+          "?XmL-StYlEsHeEt a=b?"
+        ]
+      ],
+      "errors": [
+        {
+          "code": "disallowed-processing-instruction-target"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?",
+      "input": "<?",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?a",
+      "input": "<?a",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?a ",
+      "input": "<?a ",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?a data",
+      "input": "<?a data",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?a data?",
+      "input": "<?a data?",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "processing instructions are literal in raw text states",
+      "input": "<?task?>",
+      "initialStates": [
+        "RCDATA state",
+        "RAWTEXT state",
+        "Script data state",
+        "PLAINTEXT state"
+      ],
+      "output": [
+        [
+          "Character",
+          "<?task?>"
+        ]
+      ]
+    },
+    {
+      "description": "CRLF in PI target whitespace and data",
+      "input": "<?task\r\n first\r\nsecond?>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "task",
+          "first\nsecond"
+        ]
+      ]
+    },
+    {
+      "description": "unfinished <?a?",
+      "input": "<?a?",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "unfinished <?a x?",
+      "input": "<?a x?",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "reserved-looking target at EOF has no delimiter",
+      "input": "<?xml",
+      "output": [],
+      "errors": [
+        {
+          "code": "eof-in-processing-instruction"
+        }
+      ]
+    },
+    {
+      "description": "NUL in PI data after a question mark",
+      "input": "<?task ?\u0000?>",
+      "output": [
+        [
+          "ProcessingInstruction",
+          "task",
+          "?\u0000"
+        ]
+      ]
+    }
+  ]
+}

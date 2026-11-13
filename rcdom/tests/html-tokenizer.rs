@@ -16,7 +16,9 @@ use html5ever::tokenizer::states::{
 };
 use html5ever::tokenizer::BufferQueue;
 use html5ever::tokenizer::{CharacterTokens, EOFToken, NullCharacterToken, ParseError};
-use html5ever::tokenizer::{CommentToken, DoctypeToken, TagToken, Token};
+use html5ever::tokenizer::{
+    CommentToken, DoctypeToken, ProcessingInstruction, ProcessingInstructionToken, TagToken, Token,
+};
 use html5ever::tokenizer::{Doctype, EndTag, StartTag, Tag};
 use html5ever::tokenizer::{TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts};
 use html5ever::TokenizerResult;
@@ -260,6 +262,11 @@ fn json_to_token(js: &Value) -> Token {
         }),
 
         "Comment" => CommentToken(args[0].get_tendril()),
+
+        "ProcessingInstruction" => ProcessingInstructionToken(ProcessingInstruction {
+            target: args[0].get_tendril(),
+            data: args[1].get_tendril(),
+        }),
 
         "Character" => CharacterTokens(args[0].get_tendril()),
 

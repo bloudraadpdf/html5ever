@@ -81,6 +81,16 @@ pub enum State {
     AfterAttributeValueQuoted,
     /// <https://html.spec.whatwg.org/#self-closing-start-tag-state>
     SelfClosingStartTag,
+    /// <https://html.spec.whatwg.org/#processing-instruction-open-state>
+    ProcessingInstructionOpen,
+    /// <https://html.spec.whatwg.org/#processing-instruction-target-state>
+    ProcessingInstructionTarget,
+    /// <https://html.spec.whatwg.org/#after-processing-instruction-target-state>
+    AfterProcessingInstructionTarget,
+    /// <https://html.spec.whatwg.org/#processing-instruction-data-state>
+    ProcessingInstructionData,
+    /// <https://html.spec.whatwg.org/#processing-instruction-questionable-state>
+    ProcessingInstructionQuestionable,
     /// <https://html.spec.whatwg.org/#bogus-comment-state>
     BogusComment,
     /// <https://html.spec.whatwg.org/#markup-declaration-open-state>

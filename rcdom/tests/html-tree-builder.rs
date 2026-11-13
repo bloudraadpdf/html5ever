@@ -138,7 +138,12 @@ fn serialize(buf: &mut String, indent: usize, handle: Handle) {
             }
         },
 
-        NodeData::ProcessingInstruction { .. } => unreachable!(),
+        NodeData::ProcessingInstruction {
+            ref target,
+            ref contents,
+        } => {
+            buf.push_str(&format!("<?{target} {contents}?>\n"));
+        },
     }
 
     for child in node.children.borrow().iter() {
@@ -282,6 +287,24 @@ fn tests(src_dir: &Path, ignores: &HashSet<String>) -> Vec<Test> {
         },
     );
 
+    let file = fs::File::open(src_dir.join("data/test/processing-instructions.dat"))
+        .expect("processing instruction cases");
+    for (index, test) in parse_tests(
+        io::BufReader::new(file)
+            .lines()
+            .map(|line| line.expect("test data is UTF-8")),
+    )
+    .into_iter()
+    .enumerate()
+    {
+        make_test(
+            &mut tests,
+            ignores,
+            "processing-instructions.dat",
+            index,
+            test,
+        );
+    }
     tests
 }
 

@@ -73,9 +73,8 @@ impl TreeSink for Sink {
         self.get_id()
     }
 
-    #[allow(unused_variables)]
-    fn create_pi(&self, target: StrTendril, value: StrTendril) -> usize {
-        unimplemented!()
+    fn create_pi(&self, _target: StrTendril, _value: StrTendril) -> usize {
+        self.get_id()
     }
 
     fn append_before_sibling(&self, _sibling: &usize, _new_node: NodeOrText<usize>) {}

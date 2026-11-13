@@ -31,7 +31,7 @@ use std::{fmt, slice};
 use crate::tokenizer::states::RawKind;
 use crate::tree_builder::tag_sets::*;
 use crate::util::str::to_escaped_string;
-use log::{debug, log_enabled, warn, Level};
+use log::{debug, log_enabled, Level};
 use markup5ever::{expanded_name, local_name, namespace_prefix, ns};
 
 #[macro_use]
@@ -553,6 +553,7 @@ where
 
             tokenizer::TagToken(x) => Token::Tag(x),
             tokenizer::CommentToken(x) => Token::Comment(x),
+            tokenizer::ProcessingInstructionToken(x) => Token::ProcessingInstruction(x),
             tokenizer::NullCharacterToken => Token::NullCharacter,
             tokenizer::EOFToken => Token::Eof,
 
@@ -1343,6 +1344,20 @@ where
 
     fn append_text(&self, text: StrTendril) -> ProcessResult<Handle> {
         self.insert_appropriately(AppendText(text), None);
+        ProcessResult::Done
+    }
+
+    fn append_processing_instruction(
+        &self,
+        instruction: tokenizer::ProcessingInstruction,
+        parent: Option<Handle>,
+    ) -> ProcessResult<Handle> {
+        let node = self.sink.create_pi(instruction.target, instruction.data);
+        if let Some(parent) = parent {
+            self.sink.append(&parent, AppendNode(node));
+        } else {
+            self.insert_appropriately(AppendNode(node), None);
+        }
         ProcessResult::Done
     }
 

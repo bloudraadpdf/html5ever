@@ -10,8 +10,10 @@
 //! The HTML5 tokenizer.
 
 pub use self::interface::{CharacterTokens, EOFToken, NullCharacterToken, ParseError};
-pub use self::interface::{CommentToken, DoctypeToken, TagToken, Token};
-pub use self::interface::{Doctype, EndTag, StartTag, Tag, TagKind};
+pub use self::interface::{
+    CommentToken, DoctypeToken, ProcessingInstructionToken, TagToken, Token,
+};
+pub use self::interface::{Doctype, EndTag, ProcessingInstruction, StartTag, Tag, TagKind};
 pub use self::interface::{TokenSink, TokenSinkResult};
 
 use self::states::{DoctypeIdKind, Public, System};
@@ -159,6 +161,8 @@ pub struct Tokenizer<Sink> {
     /// Current comment.
     current_comment: RefCell<StrTendril>,
 
+    current_processing_instruction: RefCell<ProcessingInstruction>,
+
     /// Current doctype token.
     current_doctype: RefCell<Doctype>,
 
@@ -204,6 +208,7 @@ impl<Sink: TokenSink> Tokenizer<Sink> {
             current_attr_name: RefCell::new(StrTendril::new()),
             current_attr_value: RefCell::new(StrTendril::new()),
             current_comment: RefCell::new(StrTendril::new()),
+            current_processing_instruction: RefCell::new(ProcessingInstruction::default()),
             current_doctype: RefCell::new(Doctype::default()),
             last_start_tag_name: RefCell::new(start_tag_name),
             temp_buf: RefCell::new(StrTendril::new()),
@@ -499,6 +504,18 @@ impl<Sink: TokenSink> Tokenizer<Sink> {
     fn emit_current_comment(&self) {
         let comment = mem::take(&mut *self.current_comment.borrow_mut());
         self.process_token_and_continue(CommentToken(comment));
+    }
+
+    fn emit_current_processing_instruction(&self) {
+        self.state.set(states::Data);
+        let instruction = mem::take(&mut *self.current_processing_instruction.borrow_mut());
+        self.process_token_and_continue(ProcessingInstructionToken(instruction));
+    }
+
+    fn processing_instruction_to_comment(&self) {
+        let mut comment = StrTendril::from_slice("?");
+        comment.push_tendril(&mem::take(&mut *self.temp_buf.borrow_mut()));
+        *self.current_comment.borrow_mut() = comment;
     }
 
     fn discard_tag(&self) {
@@ -887,10 +904,7 @@ impl<Sink: TokenSink> Tokenizer<Sink> {
                 match get_char!(self, input) {
                     '!' => go!(self: to MarkupDeclarationOpen),
                     '/' => go!(self: to EndTagOpen),
-                    '?' => {
-                        self.bad_char_error();
-                        go!(self: clear_comment; reconsume BogusComment)
-                    },
+                    '?' => go!(self: clear_temp; to ProcessingInstructionOpen),
                     c => match lower_ascii_letter(c) {
                         Some(cl) => go!(self: create_tag StartTag cl; to TagName),
                         None => {
@@ -1621,6 +1635,91 @@ impl<Sink: TokenSink> Tokenizer<Sink> {
                 }
             },
 
+            //§ processing-instruction-open-state
+            states::ProcessingInstructionOpen => loop {
+                match get_char!(self, input) {
+                    c if c.is_ascii_alphabetic() || c == '_' => {
+                        go!(self: reconsume ProcessingInstructionTarget)
+                    },
+                    _ => {
+                        self.bad_char_error();
+                        self.processing_instruction_to_comment();
+                        go!(self: reconsume BogusComment)
+                    },
+                }
+            },
+
+            //§ processing-instruction-target-state
+            states::ProcessingInstructionTarget => loop {
+                match get_char!(self, input) {
+                    '\t' | '\n' | '\x0c' | ' ' | '?' | '>' => {
+                        let target = self.temp_buf.borrow();
+                        let reserved = target.eq_ignore_ascii_case("xml")
+                            || target.eq_ignore_ascii_case("xml-stylesheet");
+                        drop(target);
+                        if reserved {
+                            self.bad_char_error();
+                            self.processing_instruction_to_comment();
+                            go!(self: reconsume BogusComment)
+                        }
+                        *self.current_processing_instruction.borrow_mut() = ProcessingInstruction {
+                            target: mem::take(&mut *self.temp_buf.borrow_mut()),
+                            data: StrTendril::new(),
+                        };
+                        go!(self: reconsume AfterProcessingInstructionTarget)
+                    },
+                    c if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') => {
+                        go!(self: push_temp c)
+                    },
+                    _ => {
+                        self.bad_char_error();
+                        self.processing_instruction_to_comment();
+                        go!(self: reconsume BogusComment)
+                    },
+                }
+            },
+
+            //§ after-processing-instruction-target-state
+            states::AfterProcessingInstructionTarget => loop {
+                match get_char!(self, input) {
+                    '\t' | '\n' | '\x0c' | ' ' => (),
+                    _ => go!(self: reconsume ProcessingInstructionData),
+                }
+            },
+
+            //§ processing-instruction-data-state
+            states::ProcessingInstructionData => loop {
+                match get_char!(self, input) {
+                    '?' => go!(self: to ProcessingInstructionQuestionable),
+                    '>' => {
+                        self.emit_current_processing_instruction();
+                        return ProcessResult::Continue;
+                    },
+                    c => self
+                        .current_processing_instruction
+                        .borrow_mut()
+                        .data
+                        .push_char(c),
+                }
+            },
+
+            //§ processing-instruction-questionable-state
+            states::ProcessingInstructionQuestionable => loop {
+                match get_char!(self, input) {
+                    '>' => {
+                        self.emit_current_processing_instruction();
+                        return ProcessResult::Continue;
+                    },
+                    _ => {
+                        self.current_processing_instruction
+                            .borrow_mut()
+                            .data
+                            .push_char('?');
+                        go!(self: reconsume ProcessingInstructionData)
+                    },
+                }
+            },
+
             //§ bogus-comment-state
             states::BogusComment => loop {
                 match get_char!(self, input) {
@@ -1807,6 +1906,18 @@ impl<Sink: TokenSink> Tokenizer<Sink> {
             | states::ScriptDataEscapedDashDash(_) => {
                 self.bad_eof_error();
                 go!(self: to Data)
+            },
+
+            states::ProcessingInstructionOpen
+            | states::ProcessingInstructionTarget
+            | states::AfterProcessingInstructionTarget
+            | states::ProcessingInstructionData
+            | states::ProcessingInstructionQuestionable => {
+                self.bad_eof_error();
+                self.temp_buf.borrow_mut().clear();
+                *self.current_processing_instruction.borrow_mut() =
+                    ProcessingInstruction::default();
+                go!(self: eof)
             },
 
             states::BeforeAttributeValue => go!(self: reconsume AttributeValue Unquoted),
@@ -2312,5 +2423,39 @@ mod test {
         ];
         let results = tokenize(vector, opts);
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn processing_instruction_tokens_cross_every_feed_boundary() {
+        let source = "<?One x=\"y\"?><?two??>";
+        for split in 0..=source.len() {
+            let tokens = tokenize(
+                vec![
+                    StrTendril::from_slice(&source[..split]),
+                    StrTendril::from_slice(&source[split..]),
+                ],
+                TokenizerOpts::default(),
+            );
+            assert_eq!(
+                tokens,
+                vec![
+                    (
+                        Token::ProcessingInstructionToken(super::ProcessingInstruction {
+                            target: "One".into(),
+                            data: "x=\"y\"".into()
+                        }),
+                        1
+                    ),
+                    (
+                        Token::ProcessingInstructionToken(super::ProcessingInstruction {
+                            target: "two".into(),
+                            data: "?".into()
+                        }),
+                        1
+                    ),
+                ],
+                "input boundary {split}"
+            );
+        }
     }
 }

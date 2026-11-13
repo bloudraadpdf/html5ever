@@ -74,6 +74,7 @@ pub(crate) enum SplitStatus {
 pub(crate) enum Token {
     Tag(Tag),
     Comment(StrTendril),
+    ProcessingInstruction(crate::tokenizer::ProcessingInstruction),
     Characters(SplitStatus, StrTendril),
     NullCharacter,
     Eof,

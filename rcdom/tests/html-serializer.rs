@@ -57,6 +57,8 @@ impl Serialize for Tokens {
                     }
                 },
                 Token::CommentToken(chars) => serializer.write_comment(chars)?,
+                Token::ProcessingInstructionToken(instruction) => serializer
+                    .write_processing_instruction(&instruction.target, &instruction.data)?,
                 Token::CharacterTokens(chars) => serializer.write_text(chars)?,
                 Token::NullCharacterToken | &Token::EOFToken => {},
                 Token::ParseError(e) => println!("parse error: {e:#?}"),
@@ -133,6 +135,8 @@ macro_rules! test_no_parse {
 test!(empty, r#""#);
 test!(fuzz, "<a a=\r\n", "");
 test!(smoke_test, r#"<p><i>Hello</i>, World!</p>"#);
+test!(processing_instruction, r#"<?task a="b"?>"#);
+test_no_parse!(processing_instruction_token, r#"<?task a="b"?>"#);
 
 test!(
     misnest,

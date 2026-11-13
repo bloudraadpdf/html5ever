@@ -620,13 +620,23 @@ impl Serialize for SerializableHandle {
         let mut ops = VecDeque::new();
         match traversal_scope {
             IncludeNode => ops.push_back(SerializeOp::Open(self.0.clone())),
-            ChildrenOnly(_) => ops.extend(
-                self.0
-                    .children
-                    .borrow()
-                    .iter()
-                    .map(|h| SerializeOp::Open(h.clone())),
-            ),
+            ChildrenOnly(_) => {
+                let contents = match self.0.data {
+                    NodeData::Element {
+                        ref template_contents,
+                        ..
+                    } => template_contents.borrow().clone(),
+                    _ => None,
+                };
+                let parent = contents.as_ref().unwrap_or(&self.0);
+                ops.extend(
+                    parent
+                        .children
+                        .borrow()
+                        .iter()
+                        .map(|h| SerializeOp::Open(h.clone())),
+                );
+            },
         }
 
         while let Some(op) = ops.pop_front() {
@@ -635,6 +645,7 @@ impl Serialize for SerializableHandle {
                     NodeData::Element {
                         ref name,
                         ref attrs,
+                        ref template_contents,
                         ..
                     } => {
                         serializer.start_elem(
@@ -642,10 +653,12 @@ impl Serialize for SerializableHandle {
                             attrs.borrow().iter().map(|at| (&at.name, &at.value[..])),
                         )?;
 
-                        ops.reserve(1 + handle.children.borrow().len());
+                        let contents = template_contents.borrow();
+                        let children = contents.as_ref().unwrap_or(&handle).children.borrow();
+                        ops.reserve(1 + children.len());
                         ops.push_front(SerializeOp::Close(name.clone()));
 
-                        for child in handle.children.borrow().iter().rev() {
+                        for child in children.iter().rev() {
                             ops.push_front(SerializeOp::Open(child.clone()));
                         }
                     },
