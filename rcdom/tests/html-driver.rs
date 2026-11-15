@@ -270,3 +270,58 @@ fn template_table_form_is_retained_without_changing_the_outer_pointer() {
     serialize::serialize(&mut output, &document, Default::default()).unwrap();
     assert_eq!(String::from_utf8(output).unwrap(), "<html><head></head><body><form id=\"outer\"><template><table><form id=\"inside\"></form></table></template><input></form></body></html>");
 }
+
+fn assert_search_parse(source: &str, body: &str) {
+    let dom = driver::parse_document(RcDom::default(), Default::default())
+        .one(format!("<!doctype html>{source}"));
+    let document: SerializableHandle = dom.document.clone().into();
+    let mut output = Vec::new();
+    serialize::serialize(&mut output, &document, Default::default()).unwrap();
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        format!("<!DOCTYPE html><html><head></head><body>{body}</body></html>"),
+        "source: {source}"
+    );
+}
+
+#[test]
+fn search_is_a_special_furthest_block_for_adoption_agency() {
+    assert_search_parse("<a><search>x</a>y", "<a></a><search><a>x</a>y</search>");
+    assert_search_parse(
+        "<a><search>x<p>y<a>z",
+        "<a></a><search><a>x</a><p><a>y</a><a>z</a></p></search>",
+    );
+}
+
+#[test]
+fn search_stops_implicit_list_item_end_tag_searches() {
+    assert_search_parse(
+        "<li>a<search><li>b",
+        "<li>a<search><li>b</li></search></li>",
+    );
+    assert_search_parse(
+        "<dd>a<search><dt>b",
+        "<dd>a<search><dt>b</dt></search></dd>",
+    );
+}
+
+#[test]
+fn search_blocks_unmatched_generic_end_tags() {
+    assert_search_parse("<x><search></x>y", "<x><search>y</search></x>");
+}
+
+#[test]
+fn search_retains_block_start_end_and_foreign_namespace_rules() {
+    assert_search_parse(
+        "<p>foo<search>bar<p>baz",
+        "<p>foo</p><search>bar<p>baz</p></search>",
+    );
+    assert_search_parse(
+        "<search><p>foo</search>bar",
+        "<search><p>foo</p></search>bar",
+    );
+    assert_search_parse(
+        "xxx<svg><x><g><a><search><b>",
+        "xxx<svg><x><g><a><search></search></a></g></x></svg><b></b>",
+    );
+}

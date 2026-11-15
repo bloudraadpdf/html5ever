@@ -81,7 +81,7 @@ declare_tag_set!(pub special_tag =
     "fieldset" "figcaption" "figure" "footer" "form" "frame" "frameset" "h1" "h2" "h3" "h4" "h5"
     "h6" "head" "header" "hgroup" "hr" "html" "iframe" "img" "input" "isindex" "li" "link"
     "listing" "main" "marquee" "menu" "meta" "nav" "noembed" "noframes" "noscript"
-    "object" "ol" "p" "param" "plaintext" "pre" "script" "section" "select" "source" "style"
+    "object" "ol" "p" "param" "plaintext" "pre" "script" "search" "section" "select" "source" "style"
     "summary" "table" "tbody" "td" "template" "textarea" "tfoot" "th" "thead" "title" "tr" "track"
     "ul" "wbr" "xmp");
 //§ END
