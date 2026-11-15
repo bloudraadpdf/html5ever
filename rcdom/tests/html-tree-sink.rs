@@ -139,3 +139,30 @@ fn check_four_lines() {
     // Assertion
     assert_eq!(*actual.line_vec.borrow(), expected);
 }
+
+#[test]
+fn implicit_body_restores_frameset_ok_after_template() {
+    for (markup, expected) in [
+        (
+            "<head><template></template></head><p><frameset>",
+            "frameset",
+        ),
+        ("<template>x</template><p><frameset>", "frameset"),
+        (
+            "<head></head><template></template><p><frameset>",
+            "frameset",
+        ),
+        ("<template></template><body><p><frameset>", "body"),
+        ("<template></template><p>x<frameset>", "body"),
+    ] {
+        let document = driver::parse_document(RcDom::default(), Default::default()).one(markup);
+        let html = document.document.children.borrow()[0].clone();
+        let children = html.children.borrow();
+        let body = children.last().unwrap();
+        let markup5ever_rcdom::NodeData::Element { name, .. } = &body.data else {
+            panic!("HTML document child must be an element")
+        };
+        assert_eq!(name.local.as_ref(), expected, "{markup}");
+        assert_eq!(name.ns, ns!(html));
+    }
+}
