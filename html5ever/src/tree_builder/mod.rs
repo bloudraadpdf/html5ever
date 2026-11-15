@@ -58,6 +58,9 @@ pub struct TreeBuilderOpts {
     ///   - If scriping is **not** enabled then the contents of a `<noscript>` element are parsed as a normal tree of nodes
     pub scripting_enabled: bool,
 
+    /// May closed fragment scripts run after the fragment is inserted? Default: false.
+    pub fragment_run_scripts: bool,
+
     /// Is this document being parsed from the `srcdoc` attribute of an `<iframe>` element?
     ///
     /// This affects heuristics that infer `QuirksMode` from `<!DOCTYPE>`.
@@ -76,6 +79,7 @@ impl Default for TreeBuilderOpts {
             honor_self_closing: false,
             exact_errors: false,
             scripting_enabled: true,
+            fragment_run_scripts: false,
             iframe_srcdoc: false,
             drop_doctype: false,
             quirks_mode: NoQuirks,

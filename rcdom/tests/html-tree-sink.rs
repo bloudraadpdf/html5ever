@@ -12,7 +12,19 @@ use std::cell::{Cell, RefCell};
 pub struct LineCountingDOM {
     pub line_vec: RefCell<Vec<(QualName, u64)>>,
     pub current_line: Cell<u64>,
+    pub started_marks: Cell<usize>,
     pub rcdom: RcDom,
+}
+
+impl LineCountingDOM {
+    fn new() -> Self {
+        Self {
+            line_vec: RefCell::new(vec![]),
+            current_line: Cell::new(1),
+            started_marks: Cell::new(0),
+            rcdom: RcDom::default(),
+        }
+    }
 }
 
 impl TreeSink for LineCountingDOM {
@@ -105,6 +117,7 @@ impl TreeSink for LineCountingDOM {
     }
 
     fn mark_script_already_started(&self, target: &Handle) {
+        self.started_marks.set(self.started_marks.get() + 1);
         self.rcdom.mark_script_already_started(target);
     }
 
@@ -116,11 +129,7 @@ impl TreeSink for LineCountingDOM {
 #[test]
 fn check_four_lines() {
     // Input
-    let sink = LineCountingDOM {
-        line_vec: RefCell::new(vec![]),
-        current_line: Cell::new(1),
-        rcdom: RcDom::default(),
-    };
+    let sink = LineCountingDOM::new();
     let mut result_tok = driver::parse_document(sink, Default::default());
     result_tok.process(StrTendril::from("<a>\n"));
     result_tok.process(StrTendril::from("</a>\n"));
@@ -164,5 +173,32 @@ fn implicit_body_restores_frameset_ok_after_template() {
         };
         assert_eq!(name.local.as_ref(), expected, "{markup}");
         assert_eq!(name.ns, ns!(html));
+    }
+}
+
+#[test]
+fn fragment_script_creation_policy_does_not_override_eof_marking() {
+    for (run_scripts, markup, marks) in [
+        (false, "<script>closed</script>", 1),
+        (false, "<script>unclosed", 2),
+        (true, "<script>closed</script>", 0),
+        (true, "<script>unclosed", 1),
+        (true, "<script>first</script><script>last", 1),
+    ] {
+        let mut options = driver::ParseOpts::default();
+        options.tree_builder.fragment_run_scripts = run_scripts;
+        let result = driver::parse_fragment(
+            LineCountingDOM::new(),
+            options,
+            QualName::new(None, ns!(html), local_name!("body")),
+            Vec::new(),
+            true,
+        )
+        .one(markup);
+        assert_eq!(result.started_marks.get(), marks, "{run_scripts}: {markup}");
+    }
+    for (markup, marks) in [("<script>closed</script>", 0), ("<script>unclosed", 1)] {
+        let result = driver::parse_document(LineCountingDOM::new(), Default::default()).one(markup);
+        assert_eq!(result.started_marks.get(), marks, "document: {markup}");
     }
 }

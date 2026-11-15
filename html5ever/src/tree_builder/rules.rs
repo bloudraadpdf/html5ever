@@ -251,7 +251,7 @@ where
                             QualName::new(None, ns!(html), local_name!("script")),
                             tag.attrs,
                         );
-                        if self.is_fragment() {
+                        if self.is_fragment() && !self.opts.fragment_run_scripts {
                             self.sink.mark_script_already_started(&elem);
                         }
                         self.insert_appropriately(AppendNode(elem.clone()), None);
