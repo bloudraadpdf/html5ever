@@ -159,7 +159,7 @@ pub(crate) fn doctype_error_and_quirks(
         (Some(p), _) if contains_pfx(LIMITED_QUIRKY_PUBLIC_PREFIXES, p) => LimitedQuirks,
 
         (Some(p), s) if contains_pfx(HTML4_PUBLIC_PREFIXES, p) => match s {
-            None => Quirks,
+            None | Some("") => Quirks,
             Some(_) => LimitedQuirks,
         },
 
