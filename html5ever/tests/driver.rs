@@ -13,6 +13,7 @@ use std::collections::HashMap;
 struct Sink {
     next_id: Cell<usize>,
     names: RefCell<HashMap<usize, &'static QualName>>,
+    form_associations: Cell<usize>,
 }
 
 impl Sink {
@@ -67,6 +68,10 @@ impl TreeSink for Sink {
             .borrow_mut()
             .insert(id, Box::leak(Box::new(name)));
         id
+    }
+
+    fn associate_with_form(&self, _: &usize, _: &usize, _: (&usize, Option<&usize>)) {
+        self.form_associations.set(self.form_associations.get() + 1);
     }
 
     fn create_comment(&self, _text: StrTendril) -> usize {
@@ -126,4 +131,25 @@ fn fragment_select_ignores_input_without_losing_following_options() {
     assert!(names
         .values()
         .any(|name| name.local == local_name!("option")));
+}
+
+#[test]
+fn seeded_fragment_form_pointer_never_assigns_parser_form_owners() {
+    let sink = Sink::default();
+    let form = html5ever::tree_builder::create_element(
+        &sink,
+        QualName::new(None, ns!(html), local_name!("form")),
+        vec![],
+    );
+    let context = html5ever::tree_builder::create_element(
+        &sink,
+        QualName::new(None, ns!(html), local_name!("div")),
+        vec![],
+    );
+    let sink =
+        driver::parse_fragment_for_element(sink, ParseOpts::default(), context, false, Some(form))
+            .one("<input>");
+    assert_eq!(sink.form_associations.get(), 0);
+    let sink = driver::parse_document(Sink::default(), ParseOpts::default()).one("<form><input>");
+    assert_eq!(sink.form_associations.get(), 1);
 }

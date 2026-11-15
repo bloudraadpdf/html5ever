@@ -221,3 +221,52 @@ fn processing_instruction_fragments_use_context_insertion_and_raw_text_rules() {
         );
     }
 }
+
+#[test]
+fn template_fragment_form_rules_ignore_even_a_seeded_form_pointer() {
+    use html5ever::{local_name, ns, tree_builder::create_element, QualName};
+    for (source, expected) in [
+        (
+            "<form><form><input>",
+            "<html><form><form><input></form></form></html>",
+        ),
+        (
+            "<br>BC<form>D<div>E</form>F</div>G",
+            "<html><br>BC<form>D<div>E</div></form>FG</html>",
+        ),
+    ] {
+        let sink = RcDom::default();
+        let context = create_element(
+            &sink,
+            QualName::new(None, ns!(html), local_name!("template")),
+            vec![],
+        );
+        let form = create_element(
+            &sink,
+            QualName::new(None, ns!(html), local_name!("form")),
+            vec![],
+        );
+        let dom = driver::parse_fragment_for_element(
+            sink,
+            Default::default(),
+            context,
+            false,
+            Some(form),
+        )
+        .one(source);
+        let mut output = Vec::new();
+        let document: SerializableHandle = dom.document.clone().into();
+        serialize::serialize(&mut output, &document, Default::default()).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), expected);
+    }
+}
+
+#[test]
+fn template_table_form_is_retained_without_changing_the_outer_pointer() {
+    let dom = driver::parse_document(RcDom::default(), Default::default())
+        .one("<form id=outer><template><table><form id=inside></table></template><input></form>");
+    let mut output = Vec::new();
+    let document: SerializableHandle = dom.document.clone().into();
+    serialize::serialize(&mut output, &document, Default::default()).unwrap();
+    assert_eq!(String::from_utf8(output).unwrap(), "<html><head></head><body><form id=\"outer\"><template><table><form id=\"inside\"></form></table></template><input></form></body></html>");
+}

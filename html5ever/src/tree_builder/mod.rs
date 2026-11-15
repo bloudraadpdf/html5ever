@@ -1143,6 +1143,15 @@ where
             .any(|elem| self.html_elem_named(elem, name.clone()))
     }
 
+    fn parsing_template_contents(&self) -> bool {
+        self.in_html_elem_named(local_name!("template"))
+            || self
+                .context_elem
+                .borrow()
+                .as_ref()
+                .is_some_and(|context| self.html_elem_named(context, local_name!("template")))
+    }
+
     fn current_node_named(&self, name: LocalName) -> bool {
         self.html_elem_named(&self.current_node(), name)
     }
@@ -1425,7 +1434,8 @@ where
         // Step 12.
         if form_associatable(qname.expanded())
             && self.form_elem.borrow().is_some()
-            && !self.in_html_elem_named(local_name!("template"))
+            && !self.parsing_template_contents()
+            && !self.is_fragment()
             && !(listed(qname.expanded())
                 && attrs
                     .iter()

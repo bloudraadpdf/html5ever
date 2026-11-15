@@ -20,7 +20,7 @@ rust-version = "1.71.0"
 [workspace.dependencies]
 # Repo dependencies
 tendril = { version = "0.5", path = "tendril" }
-web_atoms = { git = "ssh://git@git.bloudraad.io/external/html5ever.git", rev = "0d2067ab28a49734415049d0bcf7b04d5e3cb035", version = "0.2.3" }
+web_atoms = { version = "0.2.3", path = "web_atoms" }
 markup5ever = { version = "0.38", path = "markup5ever" }
 xml5ever = { version = "0.38", path = "xml5ever" }
 html5ever = { version = "0.38", path = "html5ever" }
