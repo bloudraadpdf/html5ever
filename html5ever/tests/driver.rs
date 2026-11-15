@@ -153,3 +153,58 @@ fn seeded_fragment_form_pointer_never_assigns_parser_form_owners() {
     let sink = driver::parse_document(Sink::default(), ParseOpts::default()).one("<form><input>");
     assert_eq!(sink.form_associations.get(), 1);
 }
+
+fn encoding_indicators(input: &str) -> Vec<String> {
+    let parser = driver::parse_document(Sink::default(), ParseOpts::default());
+    parser.input_buffer.push_back(input.into());
+    let mut declarations = Vec::new();
+    loop {
+        match parser.tokenizer.feed(&parser.input_buffer) {
+            html5ever::TokenizerResult::EncodingIndicator(label) => {
+                declarations.push(label.to_string())
+            },
+            html5ever::TokenizerResult::Script(_) => {},
+            html5ever::TokenizerResult::Done => break,
+        }
+    }
+    parser.tokenizer.end();
+    declarations
+}
+
+#[test]
+fn encoding_indicators_belong_only_to_meta_elements() {
+    for tag in ["base", "basefont", "bgsound", "link"] {
+        for attributes in [
+            "charset=windows-1251",
+            "http-equiv=content-type content='text/html;charset=windows-1251'",
+        ] {
+            assert_eq!(
+                encoding_indicators(&format!("<!doctype html><head><{tag} {attributes}>")),
+                Vec::<String>::new(),
+                "{tag} {attributes}"
+            );
+        }
+    }
+}
+
+#[test]
+fn encoding_indicators_keep_real_meta_character_references_and_content_type() {
+    for markup in [
+        "<meta charset='windows&#45;1251'>",
+        "<meta http-equiv=Content-Type content='text/html;charset=windows-1251'>",
+    ] {
+        assert_eq!(encoding_indicators(markup), ["windows-1251"]);
+    }
+}
+
+#[test]
+fn encoding_indicators_respect_actual_raw_text_and_rcdata_contexts() {
+    for tag in ["script", "style", "title"] {
+        assert_eq!(
+            encoding_indicators(&format!(
+                "<head><{tag}><meta charset=windows-1251></{tag}><meta charset=UTF-8>"
+            )),
+            ["UTF-8"]
+        );
+    }
+}

@@ -202,6 +202,9 @@ where
 
                     Token::Tag(tag @ tag!(<base> | <basefont> | <bgsound> | <link> | <meta>)) => {
                         self.insert_and_pop_element_for(tag.clone());
+                        if tag.name != local_name!("meta") {
+                            return ProcessResult::DoneAckSelfClosing;
+                        }
 
                         // Step 1. If the element has a charset attribute, and getting an encoding from its value
                         // results in an encoding, and the confidence is currently tentative, then change the encoding
